@@ -37,13 +37,14 @@
 #include <U8g2lib.h>
 
 #ifdef U8X8_HAVE_HW_SPI
-#include <SPI.h>
+    #include <SPI.h>
 #endif
 #ifdef U8X8_HAVE_HW_I2C
-#include <Wire.h>
+    #include <Wire.h>
 #endif
 
 #include "./assets/c-base-logo.h"
+#include "./assets/c-base-shape.h"
 
 /*
   U8g2lib Example Overview:
@@ -52,10 +53,44 @@
   Only Example: No RAM usage, direct communication with display controller. No graphics, 8x8 Text only.
 
   This is a page buffer example.
-*/
+  */
 
-// implictly assumes: sck/clk on pin 13, sdin/copi on pin 11 ("hardware SPI")
-U8G2_SSD1322_NHD_256X64_1_4W_HW_SPI u8g2(U8G2_R0, /* cs=*/10, /* dc=*/9, /* reset=*/8);
+// // builtin pins for hardware SPI
+// // https://www.teachmemicro.com/esp32-pinout-diagram-wroom-32/
+// #define SPI_BUILTIN_CIPO_PIN 12
+// #define SPI_BUILTIN_COPI_PIN 13
+// #define SPI_BUILTIN_SCK_PIN 14
+// #define SPI_BUILTIN_CS_PIN 15
+
+// // changeable
+// #define SPI_RESET_PIN 25
+// #define SPI_DC_PIN 26
+
+// // implictly assumes: sck/clk on pin 14, sdin/copi/miso on pin 13 ("hardware SPI")
+// U8G2_SSD1322_NHD_256X64_1_4W_HW_SPI u8g2(U8G2_R0, /* cs=*/SPI_BUILTIN_CS_PIN, /* dc=*/SPI_DC_PIN,
+//                                          /* reset=*/SPI_RESET_PIN);
+
+// builtin pins for hardware SPI
+// https://www.teachmemicro.com/esp32-pinout-diagram-wroom-32/
+#define SPI_BUILTIN_CIPO_PIN 12
+#define SPI_BUILTIN_COPI_PIN 13
+#define SPI_BUILTIN_SCK_PIN 14
+#define SPI_BUILTIN_CS_PIN 15
+
+// changeable
+#define SPI_RESET_PIN 25
+#define SPI_DC_PIN 26
+
+// implictly assumes: sck/clk on pin 14, sdin/copi/miso on pin 13 ("hardware SPI")
+U8G2_SSD1322_NHD_256X64_F_4W_SW_SPI
+u8g2(
+    U8G2_R0,
+    /* sck */ SPI_BUILTIN_SCK_PIN,
+    /* data */ SPI_BUILTIN_COPI_PIN,
+    /* cs */ SPI_BUILTIN_CS_PIN,
+    /* dc */ SPI_DC_PIN,
+    /* reset */ SPI_RESET_PIN
+);
 
 void u8g2_prepare(void) {
     u8g2.setFont(u8g2_font_6x10_tf);
@@ -72,31 +107,59 @@ void draw_img(void) {
 }
 
 void setup(void) {
-
     /* U8g2 Project: SSD1306 Test Board */
-    pinMode(10, OUTPUT);
-    pinMode(9, OUTPUT);
-    digitalWrite(10, 0);
-    digitalWrite(9, 0);
+    pinMode(SPI_BUILTIN_CS_PIN, OUTPUT);
+    pinMode(SPI_DC_PIN, OUTPUT);
+    digitalWrite(SPI_BUILTIN_CS_PIN, 0);
+    digitalWrite(SPI_DC_PIN, 0);
 
-    /* U8g2 Project: T6963 Test Board */
-    // pinMode(18, OUTPUT);
-    // digitalWrite(18, 1);
-
-    /* U8g2 Project: KS0108 Test Board */
-    // pinMode(16, OUTPUT);
-    // digitalWrite(16, 0);
+    // https://github.com/olikraus/u8g2/blob/2b75f932b5ef4b4de8edf73e1a690702a35b1976/doc/faq.txt#L35-L36
+    // SPI = SPIClass(HSPI);
 
     u8g2.begin();
-    // u8g2.setFlipMode(0);
+}
+
+int loopDurationMs = 1000;
+
+double square(double x) {
+    return x * x;
 }
 
 void loop(void) {
+    static long unsigned lastTime = 0;
+    if (lastTime == 0) {
+        lastTime = millis();
+    }
+
+    static long unsigned delta = millis() - lastTime;
+    lastTime = millis();
+
     u8g2_prepare();
-    u8g2.firstPage();
-    do {
-        // u8g2.drawXBMP(2, 12, cross_width, cross_height, cross_bits);
-        draw_img();
-    } while (u8g2.nextPage());
-    delay(100);
+    // u8g2.firstPage();
+    u8g2.clearBuffer();
+
+    auto time = millis() / 10;
+    double loopPercent = (double)(time % loopDurationMs) / (double)loopDurationMs;
+    double speed = 100 * square(sin(loopPercent * PI));
+
+    char speedStr[64];
+    snprintf(speedStr, (sizeof speedStr), "%05.2f", speed);
+    // std::string speedStr = std::format("{:.2} mm/s", speed);
+    // std::string speedStr = std::to_string(speed) + " mm/s";
+
+    // do {
+    u8g2.drawXBMP(2, 2, c_base_shape.width, c_base_shape.height, c_base_shape.data);
+    // draw_img();
+    u8g2.setFont(u8g2_font_6x10_mf);
+    u8g2.drawStr(c_base_shape.width + 2 + 16, 8, "Monorail speed");
+
+    u8g2.setFont(u8g2_font_inb24_mn);
+    u8g2.drawStr(c_base_shape.width + 2 + 16, 20, speedStr);
+
+    u8g2.setFont(u8g2_font_12x6LED_tf);
+    u8g2.drawStr(3 * 64 - 16, 64 - 30, "mm/s");
+
+    u8g2.sendBuffer();
+
+    // delay(100);
 }
