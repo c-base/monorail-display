@@ -27,6 +27,7 @@ function bmpToXBM(/** @type {Buffer} */ bmpData) {
   const bmp = BMP.decode(bmpData);
 
   const bytes = [];
+  let indexInRow = 0;
   let currentByte = 0b00000000;
   let bitOffset = 0;
   for (let i = 0; i < bmp.data.length; i += 4) {
@@ -39,19 +40,21 @@ function bmpToXBM(/** @type {Buffer} */ bmpData) {
       // 0 1 2 3 4 5 6 7
       currentByte |= 1 << bitOffset;
     }
-    if (bitOffset === 7) {
+    if (
+      // completed a byte
+      bitOffset === 7 ||
+      // next pixel starts a full row, need to finish now
+      (bitOffset < 7 && (indexInRow + 1) % bmp.width === 0)
+    ) {
       bytes.push(currentByte);
       currentByte = 0b00000000;
       bitOffset = 0;
     } else {
       bitOffset++;
     }
+    indexInRow = (indexInRow + 1) % bmp.width;
   }
-  if (bytes.length !== (bmp.width * bmp.height) / 8) {
-    throw new Error(
-      `Expected ${(width * height) / 8} bytes, got ${bytes.length} bytes`
-    );
-  }
+
   return { width: bmp.width, height: bmp.height, data: bytes };
 }
 
