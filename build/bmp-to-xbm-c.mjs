@@ -7,16 +7,16 @@ const PROGRAM_NAME = "bmp-to-xbm-c.mjs";
 
 function main() {
   const argv = process.argv.slice(2);
-  const [filePathRaw, varBase = "img"] = argv;
+  const [filePathRaw, varName = "img"] = argv;
 
   if (!filePathRaw) {
-    throw new Error(`usage: ${PROGRAM_NAME} <filename> [var_base]`);
+    throw new Error(`usage: ${PROGRAM_NAME} <filename> [var_name]`);
   }
   const filePath = path.resolve(filePathRaw);
   const bmpBytes = fs.readFileSync(filePath);
 
   const xbmImage = bmpToXBM(bmpBytes);
-  const cCode = bytesToCCode(xbmImage, varBase, filePath);
+  const cCode = bytesToCCode(xbmImage, varName, filePath);
   console.log(cCode);
 }
 
@@ -61,23 +61,24 @@ const INDENT = "    ";
 /** @returns {string} */
 function bytesToCCode(
   /** @type {XBMImage} */ xbmImage,
-  /** @type {string} */ varBase,
+  /** @type {string} */ varName,
   /** @type {string} */ sourceFilePath
 ) {
   const { width, height, data } = xbmImage;
   let res = [];
-  res.push(`#include <U8g2lib.h>`);
-  res.push(``);
   res.push(
+    `#include <U8g2lib.h>`,
+    ``,
     `// generated from '${path.basename(
       sourceFilePath
     )}' using \`${PROGRAM_NAME}\``
   );
-  res.push(`#define ${varBase}_width ${width}`);
-  res.push(`#define ${varBase}_height ${height}`);
 
+  const bitsVarName = `__embedded_xbm_bits_${varName}`;
   // note: the U8X8_PROGMEM is important, we don't want the imge to be in RAM
-  res.push(`static const unsigned char ${varBase}_bits[] U8X8_PROGMEM = {`);
+  res.push(
+    `static const unsigned char ${bitsVarName}[${data.length}] U8X8_PROGMEM = {`
+  );
   {
     const pushRow = (row) => {
       res.push(
@@ -103,8 +104,18 @@ function bytesToCCode(
     }
   }
 
-  res.push(`};`);
-  return res.join("\n");
+  res.push(`};`, ``);
+
+  // use an anonymous struct because importing a declaration would need a relative path so it'd be hard
+  res.push(
+    `struct {`,
+    `${INDENT}u8g2_uint_t width;`,
+    `${INDENT}u8g2_uint_t height;`,
+    `${INDENT}const uint8_t *data;`,
+    `} ${varName} = {.width = ${width}, .height = ${height}, .data = (uint8_t *)${bitsVarName}};`
+  );
+
+  return res.join("\n") + "\n";
 }
 
 main();

@@ -68,7 +68,7 @@ void u8g2_prepare(void) {
 void draw_img(void) {
     // u8g2.setBitmapMode(false /* solid */);
     // note: assumes image is in progmem, use `u8g2.drawXBM` for dynamically generated images
-    u8g2.drawXBMP(0, 0, c_base_logo_width, c_base_logo_height, c_base_logo_bits);
+    u8g2.drawXBMP(0, 0, c_base_logo.width, c_base_logo.height, c_base_logo.data);
 }
 
 void setup(void) {
