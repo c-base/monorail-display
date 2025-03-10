@@ -54,7 +54,7 @@
   This is a page buffer example.
 */
 
-// U8G2_SSD1322_NHD_256X64_2_4W_HW_SPI u8g2(U8G2_R0, /* cs=*/10, /* dc=*/9, /* reset=*/8);
+// implictly assumes: sck/clk on pin 13, sdin/copi on pin 11 ("hardware SPI")
 U8G2_SSD1322_NHD_256X64_1_4W_HW_SPI u8g2(U8G2_R0, /* cs=*/10, /* dc=*/9, /* reset=*/8);
 
 void u8g2_prepare(void) {
